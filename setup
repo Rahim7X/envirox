@@ -1,0 +1,33 @@
+#!/bin/bash
+
+# Update package list and install zsh, unzip, wget, and vim
+apt update
+apt install -y zsh unzip wget vim
+
+# Optional: Set zsh as the default shell for the current user
+chsh -s $(which zsh)
+
+# Update the current user's .zshrc
+echo 'export ZSH_THEME="robbyrussell"' >> ~/.zshrc
+echo 'alias ll="ls -la"' >> ~/.zshrc
+echo 'cd /home/ubuntu' >> ~/.zshrc  # Automatically switch to /home/ubuntu upon starting zsh
+
+# Source the .zshrc file to apply changes immediately (if already using zsh)
+if [ "$SHELL" = "$(which zsh)" ]; then
+    source ~/.zshrc
+else
+    echo "Please restart the terminal or run 'zsh' to switch to the new shell and apply changes."
+fi
+
+# Edit root user's .bashrc to switch to zsh and change directory to /home/ubuntu
+echo 'if [ -t 1 ]; then' >> /root/.bashrc
+echo '    exec zsh' >> /root/.bashrc
+echo 'fi' >> /root/.bashrc
+echo 'cd /home/ubuntu' >> /root/.bashrc
+
+# Customize root's zsh prompt to show 'root@envirox' with a skeleton emoji
+echo 'export PS1="💀 root@envirox: "' >> /root/.zshrc
+echo 'cd /home/ubuntu' >> /root/.zshrc  # Switch to /home/ubuntu for zsh session as well
+
+# Print success message
+echo "Root's .bashrc and .zshrc updated. Zsh will start with 'root@envirox 💀' prompt and switch to /home/ubuntu."

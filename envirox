@@ -1,0 +1,73 @@
+#!/bin/bash
+
+# Define colors for output
+GREEN='\033[0;32m'
+RED='\033[0;31m'
+NC='\033[0m' # No Color
+
+# Define paths
+HOST_DIR="/run/media/rahim/bf5ef12b-8be4-4bc5-8053-718dbe977753/home/rahim/UNUSED/podman"
+CONTAINER_NAME="envirox"  # Container name
+IMAGE_NAME="envirox"       # Updated image name
+CONTAINER_IMAGE="ubuntu:latest"
+
+# Create host directory if it doesn't exist
+mkdir -p "$HOST_DIR"
+
+# Function to handle errors
+handle_error() {
+    echo -e "${RED}Error: $1${NC}"
+    exit 1
+}
+
+# Check if the container already exists
+if ! podman ps -a --format '{{.Names}}' | grep -q "$CONTAINER_NAME"; then
+    echo -e "${GREEN}Creating a new persistent container...${NC}"
+    # Run the container in detached mode with the volume mount
+    if ! podman run -d --name "$CONTAINER_NAME" -v "$HOST_DIR:/home/ubuntu" "$CONTAINER_IMAGE" tail -f /dev/null; then
+        handle_error "Failed to create the container."
+    fi
+    echo -e "${GREEN}Container created. You can now log in to it.${NC}"
+else
+    echo -e "${GREEN}Container already exists. Starting the container...${NC}"
+    if ! podman start "$CONTAINER_NAME" > /dev/null 2>&1; then
+        handle_error "Failed to start the container."
+    fi
+fi
+
+# Log in to the container
+echo -e "${GREEN}Logging in to the container...${NC}"
+if ! podman exec -it "$CONTAINER_NAME" /bin/bash; then
+    handle_error "Failed to log in to the container."
+fi
+
+# After exiting the container, commit changes
+echo -e "${GREEN}Committing changes to the image...${NC}"
+if ! podman commit "$CONTAINER_NAME" "$IMAGE_NAME"; then
+    handle_error "Failed to commit changes to the image."
+fi
+
+# Check if the old image exists before trying to delete it
+if podman images --format '{{.Repository}}:{{.Tag}}' | grep -q "$IMAGE_NAME"; then
+    echo -e "${GREEN}Deleting the old image...${NC}"
+    if ! podman rmi "$IMAGE_NAME" --force; then
+        handle_error "Failed to delete the old image."
+    fi
+else
+    echo -e "${GREEN}No old image found to delete.${NC}"
+fi
+
+# Rename the new image to the specified name
+echo -e "${GREEN}Renaming the new image...${NC}"
+if ! podman tag "$IMAGE_NAME" "$IMAGE_NAME:latest"; then
+    handle_error "Failed to rename the new image."
+fi
+
+# Optional: Stop the container after committing changes
+echo -e "${GREEN}Stopping the container...${NC}"
+if ! podman stop "$CONTAINER_NAME"; then
+    handle_error "Failed to stop the container."
+fi
+
+echo -e "${GREEN}Changes committed, old image deleted (if it existed), and container stopped. You can log in again using this script.${NC}"
+
